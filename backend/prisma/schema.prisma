@@ -1,0 +1,198 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// 1. UTILISATEURS
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  password_hash String
+  full_name     String
+  role          String    @default("client") // superadmin, admin, client
+  company       String?
+  phone         String?
+  is_blocked    Boolean   @default(false)
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+
+  // Relations
+  quotes           Quote[]
+  bookings         Booking[]
+  orders           Order[]
+  clientExpertises ClientExpertise[]
+  requests         ExpertiseActivationRequest[]
+  notifications    Notification[]
+  historyLogs      ExpertiseHistory[]
+
+  @@map("users")
+}
+
+// 2. EXPERTISES & SERVICES PAYANTS (200 FCFA)
+model Expertise {
+  id          String   @id
+  title       String
+  badge       String?
+  price       Int      @default(200)
+  currency    String   @default("FCFA")
+  description String
+  features    String[] // Array PostgreSQL natif
+  icon        String
+  category    String
+  created_at  DateTime @default(now())
+
+  // Relations
+  clientExpertises ClientExpertise[]
+  requests         ExpertiseActivationRequest[]
+  historyLogs      ExpertiseHistory[]
+
+  @@map("expertises")
+}
+
+// 3. DEMANDES DE PAIEMENT WHATSAPP
+model ExpertiseActivationRequest {
+  id             String    @id @default(uuid())
+  client_id      String
+  client_name    String
+  client_email   String
+  client_phone   String?
+  expertise_id   String
+  expertise_name String
+  amount         Int       @default(200)
+  currency       String    @default("FCFA")
+  status         String    @default("PENDING") // PENDING, APPROVED, REJECTED, CANCELLED
+  admin_id       String?
+  admin_note     String?
+  created_at     DateTime  @default(now())
+  updated_at     DateTime  @updatedAt
+  approved_at    DateTime?
+
+  // Relations
+  client    User      @relation(fields: [client_id], references: [id], onDelete: Cascade)
+  expertise Expertise @relation(fields: [expertise_id], references: [id], onDelete: Cascade)
+
+  @@map("expertise_activation_requests")
+}
+
+// 4. RELATION INDIVIDUELLE CLIENT ↔ EXPERTISE
+model ClientExpertise {
+  id             String    @id @default(uuid())
+  client_id      String
+  expertise_id   String
+  expertise_name String
+  status         String    @default("INACTIVE") // ACTIVE, INACTIVE
+  activated_at   DateTime?
+  activated_by   String?
+  deactivated_at DateTime?
+  deactivated_by String?
+  created_at     DateTime  @default(now())
+  updated_at     DateTime  @updatedAt
+
+  // Relations
+  client    User      @relation(fields: [client_id], references: [id], onDelete: Cascade)
+  expertise Expertise @relation(fields: [expertise_id], references: [id], onDelete: Cascade)
+
+  @@unique([client_id, expertise_id])
+  @@map("client_expertises")
+}
+
+// 5. NOTIFICATIONS
+model Notification {
+  id         String   @id @default(uuid())
+  user_id    String
+  title      String
+  message    String
+  type       String   @default("info") // success, danger, warning, info
+  is_read    Boolean  @default(false)
+  created_at DateTime @default(now())
+
+  // Relations
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+// 6. HISTORIQUE D'AUDIT
+model ExpertiseHistory {
+  id                String   @id @default(uuid())
+  client_id         String
+  client_name       String
+  expertise_id      String
+  expertise_name    String
+  action            String   // REQUESTED, APPROVED, REJECTED, ACTIVATED, DEACTIVATED
+  performed_by      String
+  performed_by_name String?
+  details           String?
+  created_at        DateTime @default(now())
+
+  // Relations
+  client    User      @relation(fields: [client_id], references: [id], onDelete: Cascade)
+  expertise Expertise @relation(fields: [expertise_id], references: [id], onDelete: Cascade)
+
+  @@map("expertise_history")
+}
+
+// 7. DEVIS & ESTIMATIONS ROI
+model Quote {
+  id                       String   @id @default(uuid())
+  user_id                  String?
+  user_name                String
+  user_email               String
+  company                  String?
+  phone                    String?
+  monthly_budget           Int
+  selected_services        String[] // Array PostgreSQL natif
+  estimated_leads          Int
+  estimated_roi_multiplier String
+  estimated_revenue        Int
+  status                   String   @default("pending")
+  notes                    String?
+  created_at               DateTime @default(now())
+
+  user User? @relation(fields: [user_id], references: [id], onDelete: SetNull)
+
+  @@map("quotes")
+}
+
+// 8. RÉSERVATIONS DE RENDEZ-VOUS
+model Booking {
+  id         String   @id @default(uuid())
+  user_id    String?
+  user_name  String
+  user_email String
+  phone      String?
+  company    String?
+  date       String
+  time_slot  String
+  topic      String
+  status     String   @default("confirmed")
+  notes      String?
+  created_at DateTime @default(now())
+
+  user User? @relation(fields: [user_id], references: [id], onDelete: SetNull)
+
+  @@map("bookings")
+}
+
+// 9. COMMANDES DE PRODUITS NUMÉRIQUES
+model Order {
+  id             String   @id @default(uuid())
+  product_id     String
+  product_title  String
+  price          Int
+  customer_name  String
+  customer_email String
+  customer_phone String?
+  company        String?
+  status         String   @default("pending")
+  created_at     DateTime @default(now())
+
+  user_id String?
+  user    User?   @relation(fields: [user_id], references: [id], onDelete: SetNull)
+
+  @@map("orders")
+}

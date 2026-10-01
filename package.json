@@ -1,0 +1,14 @@
+{
+  "name": "ttes-icg-marketing",
+  "version": "1.0.0",
+  "description": "Application Web Full-stack pour l'agence de marketing TTES-ICG",
+  "main": "backend/server.js",
+  "scripts": {
+    "start": "node backend/server.js",
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:frontend": "npm --prefix frontend run dev"
+  },
+  "keywords": ["marketing", "ttes-icg", "react", "express", "sqlite", "jwt"],
+  "author": "TTES-ICG Development Team",
+  "license": "ISC"
+}
